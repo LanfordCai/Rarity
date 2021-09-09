@@ -12,13 +12,21 @@ const RARITY_ABI = require('./rarity_abi.json')
 const RARITY = new web3.eth.Contract(RARITY_ABI, Config.contract)
 
 const classes = {1: 'Barbarian', 2: 'Bard', 3: 'Cleric', 4: 'Druid', 5: 'Fighter', 6: 'Monk', 7: 'Paladin', 8: 'Ranger', 9: 'Rogue', 10: 'Sorcerer', 11: 'Wizard'}
+const invertClasses = Object.keys(classes).reduce((ret, key) => { ret[classes[key]] = parseInt(key); return ret}, {})
 
-// adventure()
-// test()
+// 0.
+test()
 
+// 1. 
+// batchSummon(1, 2)
+
+// 2. 
 // parseSummoners()
-// getSummoners()
-levelUp()
+
+// 3. 
+// adventure()
+
+// levelUp()
 
 
 async function test() {
@@ -39,14 +47,15 @@ async function parseSummoners() {
         )
         .map( record => parseInt(record[6]) )
 
-    tokenIds.shift()
+    const dir = './data'
+    fs.rmdirSync(dir, { recursive: true })
+    !fs.existsSync(dir) && fs.mkdirSync(dir)
 
     for (var i = 0; i < tokenIds.length; i++) {
         const rawClass = await RARITY.methods.class(tokenIds[i]).call()
+        console.log(rawClass)
         const summonerClass = classes[rawClass]
-        const dir = './data'
-        !fs.existsSync(dir) && fs.mkdirSync(dir)
-        fs.writeFileSync(`${dir}/${summonerClass}`, `${tokenIds[i]}`)
+        fs.appendFileSync(`${dir}/${summonerClass}`, `${tokenIds[i]}\n`)
     }
 }
 
@@ -94,7 +103,7 @@ async function goAdventure(summonerId) {
 }
 
 async function levelUp() {
-    var summoners = getSummoners(['Barbarian'])
+    var summoners = getSummoners()
     for (var i = 0; i < summoners.length; i++) {
         try {
             if (await canLevelUp(summoners[i]) == true) {
@@ -124,7 +133,8 @@ function getSummoners(summonerClasses = ['Barbarian', 'Bard', 'Cleric', 'Druid',
     for (var i = 0; i < summonerClasses.length; i++) {
         const path = `./data/${summonerClasses[i]}`
         const content = fs.readFileSync(path)
-        summoners.push(parseInt(content))
+        const ids = String(content).trim().split('\n').map((v) => parseInt(v))
+        summoners = summoners.concat(ids)
     }
 
     return summoners
