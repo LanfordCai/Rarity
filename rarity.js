@@ -14,20 +14,25 @@ const RARITY = new web3.eth.Contract(RARITY_ABI, Config.contract)
 const classes = {1: 'Barbarian', 2: 'Bard', 3: 'Cleric', 4: 'Druid', 5: 'Fighter', 6: 'Monk', 7: 'Paladin', 8: 'Ranger', 9: 'Rogue', 10: 'Sorcerer', 11: 'Wizard'}
 
 // adventure()
-test()
+// test()
+
 // parseSummoners()
+// getSummoners()
+levelUp()
 
 
 async function test() {
-    console.log(RARITY)
-    const rawClass = await RARITY.methods.class(13098).call()
-    console.log(rawClass)
+    const [rawClass, error] = await safePromise(RARITY.methods.class(13098).call())
+    if (error) {
+        console.log(error)
+    } else {
+        console.log(rawClass)
+    }
 }
 
 async function parseSummoners() {
     const content = await fs.promises.readFile(`erc721_txns.csv`)
     const records = parse(content)
-    console.log(records)
     const tokenIds = records
         .filter( record => 
             (record[3] == '0x0000000000000000000000000000000000000000') && (record[4] == Config.account.address.toLowerCase())
@@ -35,12 +40,9 @@ async function parseSummoners() {
         .map( record => parseInt(record[6]) )
 
     tokenIds.shift()
-    console.log(tokenIds)
 
     for (var i = 0; i < tokenIds.length; i++) {
-        console.log(tokenIds[i])
         const rawClass = await RARITY.methods.class(tokenIds[i]).call()
-        console.log(rawClass)
         const summonerClass = classes[rawClass]
         const dir = './data'
         !fs.existsSync(dir) && fs.mkdirSync(dir)
@@ -52,13 +54,13 @@ async function batchSummon(summonerClass, amount) {
     for (var i = 0; i < amount; i++) {
         try {
             await summon(summonerClass)
-        } catch (e) {}
+        } catch (e) { console.log(e) }
     }
 }
 
 async function summon(summonerClass) {
     const encodedABI = RARITY.methods.summon(summonerClass).encodeABI()
-    const rawTx = signTx(encodedABI)
+    const rawTx = await signTx(encodedABI)
     const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
     if (error) {
         console.log(`Summon ${classes[summonerClass]} failed!`)
@@ -68,32 +70,65 @@ async function summon(summonerClass) {
 }
 
 async function adventure() {
-    var summoners = Config.summoners
+    var summoners = getSummoners()
     for (var i = 0; i < summoners.length; i++) {
         try {
-            if (isAvailableForAdventure(summoners[i]) == true) {
+            if (await isAvailableForAdventure(summoners[i]) == true) {
                 await goAdventure(summoners[i])
             } else {
                 console.log(`${summoners[i]} is unavailable for adventuring now`)
             }
-        } catch (e) {}
+        } catch (e) { console.log(e) }
     }
 }
 
-
-async function goAdventure(summonerID) {
-    const encodedABI = RARITY.methods.adventure(summonerID).encodeABI()
-    const rawTx = signTx(encodedABI)
+async function goAdventure(summonerId) {
+    const encodedABI = RARITY.methods.adventure(summonerId).encodeABI()
+    const rawTx = await signTx(encodedABI)
     const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
     if (error) {
-        console.log(`Adventure failed! summoner: ${summonerID}`)
+        console.log(`Adventure failed! summoner: ${summonerId} error: ${error}`)
     } else {
-        console.log(`Adventure succeed! summoner: ${summonerID} txid: ${res['transactionHash']}`)
+        console.log(`Adventure succeed! summoner: ${summonerId} txid: ${res['transactionHash']}`)
     }
 }
 
+async function levelUp() {
+    var summoners = getSummoners(['Barbarian'])
+    for (var i = 0; i < summoners.length; i++) {
+        try {
+            if (await canLevelUp(summoners[i]) == true) {
+                await doLevelUp(summoners[i])
+            } else {
+                console.log(`${summoners[i]} can't level up now!`)
+            }
+        } catch (e) { console.log(e) }
+    }
+}
+
+async function doLevelUp(summonerId) {
+    const encodedABI = RARITY.methods.level_up(summonerId).encodeABI()
+    const rawTx = await signTx(encodedABI)
+    const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
+    if (error) {
+        console.log(`Levelup failed! summoner: ${summonerId} error: ${error}`)
+    } else {
+        console.log(`Levelup succeed! summoner: ${summonerId} txid: ${res['transactionHash']}`)
+    } 
+}
 
 // 
+
+function getSummoners(summonerClasses = ['Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk', 'Paladin', 'Ranger', 'Rogue', 'Sorcerer', 'Wizard']) {
+    var summoners = []
+    for (var i = 0; i < summonerClasses.length; i++) {
+        const path = `./data/${summonerClasses[i]}`
+        const content = fs.readFileSync(path)
+        summoners.push(parseInt(content))
+    }
+
+    return summoners
+}
 
 async function isAvailableForAdventure(summonerId) {
     const lastTime = await RARITY.methods.adventurers_log(summonerId).call()
@@ -102,10 +137,22 @@ async function isAvailableForAdventure(summonerId) {
 }
 
 async function canLevelUp(summonerId) {
+    const level = await RARITY.methods.level(summonerId).call()
+    const xpRequired = getXpRequired(level)
+    const xp = await RARITY.methods.xp(summonerId).call()
 
-
+    return (xp - xpRequired) >= 0
 }
 
+
+// Get from RM contract
+function getXpRequired(currentLevel) {
+    xpToNextLevel = currentLevel * 1000e18
+    for (var i = 1; i < currentLevel; i++) {
+        xpToNextLevel += i * 1000e18;
+    }
+    return xpToNextLevel
+}
 
 
 // Utils
