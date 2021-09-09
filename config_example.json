@@ -1,0 +1,17 @@
+{
+    "contract": "0xce761D788DF608BD21bdd59d6f4B54b2e27F25Bb",
+    "network": {
+        "endpoint": "https://rpc.ftm.tools",
+        "chain_id": 250
+    },
+    "summoners": [],
+    "player_privkey": "",
+    "transaction": {
+        "gas_limit": 110000,
+        "gas_price": 100
+    },
+    "account": {
+        "address": "0x",
+        "privkey": ""
+    }
+}
