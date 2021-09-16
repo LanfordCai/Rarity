@@ -9,13 +9,19 @@ const web3 = new Web3(Config.network.endpoint)
 
 const CHAIN_ID = Config.network.chain_id
 const RARITY_ABI = require('./rarity_abi.json')
-const RARITY = new web3.eth.Contract(RARITY_ABI, Config.contract)
+const RARITY = new web3.eth.Contract(RARITY_ABI, Config.rarity_contract)
+
+const MULTIPLE_RARITY_ABI = require('./multiple_rarity_abi.json')
+const MULTIPLE_RARITY = new web3.eth.Contract(MULTIPLE_RARITY_ABI, Config.multiple_rarity_contract)
+
+const RARITY_GOLD_ABI = require('./rarity_gold_abi.json')
+const RARITY_GOLD = new web3.eth.Contract(RARITY_GOLD_ABI, Config.rarity_gold_contract)
 
 const classes = {1: 'Barbarian', 2: 'Bard', 3: 'Cleric', 4: 'Druid', 5: 'Fighter', 6: 'Monk', 7: 'Paladin', 8: 'Ranger', 9: 'Rogue', 10: 'Sorcerer', 11: 'Wizard'}
 const invertClasses = Object.keys(classes).reduce((ret, key) => { ret[classes[key]] = parseInt(key); return ret}, {})
 
 // 0.
-test()
+// test()
 
 // 1. 
 // batchSummon(1, 2)
@@ -24,10 +30,14 @@ test()
 // parseSummoners()
 
 // 3. 
-// adventure()
 
-// levelUp()
+main()
 
+async function main() {
+    await multipleLevelUp()
+    await multipleAdventure()
+    await multipleCraftingMaterials()
+}
 
 async function test() {
     const [rawClass, error] = await safePromise(RARITY.methods.class(13098).call())
@@ -69,12 +79,108 @@ async function batchSummon(summonerClass, amount) {
 
 async function summon(summonerClass) {
     const encodedABI = RARITY.methods.summon(summonerClass).encodeABI()
-    const rawTx = await signTx(encodedABI)
+    const rawTx = await signTx(RARITY, encodedABI)
     const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
     if (error) {
         console.log(`Summon ${classes[summonerClass]} failed!`)
     } else {
         console.log(`Summon ${classes[summonerClass]} succeed!`)
+    }
+}
+
+async function batchClaimGold() {
+    var summoners = getSummoners()
+    for (var i = 0; i < summoners.length; i++) {
+        try {
+            if (await RARITY_GOLD.methods.claimable(summoners[i]).call({from: Config.account.address}) != 0) {
+                await claimGold(summoners[i])
+            } else {
+                console.log(`${summoners[i]} cann't claim gold now.`)
+            }
+        } catch (e) { console.log(e) }
+    } 
+}
+
+async function claimGold(summonerId) {
+    const encodedABI = RARITY_GOLD.methods.claim(summonerId).encodeABI()
+    const rawTx = await signTx(RARITY_GOLD, encodedABI)
+    const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
+    if (error) {
+        console.log(`Claim gold failed! summonerId: ${summonerId} error: ${error}`)
+    } else {
+        console.log(`Claim gold succeed! summonerId: ${summonerId} txid: ${res['transactionHash']}`)
+    }
+}
+
+async function batchApproveToMultipleRarity() {
+    var summoners = getSummoners()
+    for (var i = 0; i < summoners.length; i++) {
+        try {
+            if (await RARITY.methods.getApproved(summoners[i]).call() != Config.multiple_rarity_contract) {
+                await approveToMultipleRarity(summoners[i])
+            } else {
+                console.log(`${summoners[i]} has already approved to multipleRarity`)
+            }
+        } catch (e) { console.log(e) }
+    }
+}
+
+async function approveToMultipleRarity(summonerId) {
+    const encodedABI = RARITY.methods.approve(Config.multiple_rarity_contract, summonerId).encodeABI()
+    const rawTx = await signTx(RARITY, encodedABI)
+    const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
+    if (error) {
+        console.log(`Approve failed! summonerId: ${summonerId} error: ${error}`)
+    } else {
+        console.log(`Approve succeed! summonerId: ${summonerId} txid: ${res['transactionHash']}`)
+    }
+}
+
+async function multipleAdventure() {
+    const summoners = getSummoners()
+    const encodedABI = MULTIPLE_RARITY.methods.multiple_level_up(summoners).encodeABI()
+    const rawTx = await signTx(MULTIPLE_RARITY, encodedABI)
+    const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
+    if (error) {
+        console.log(`Adventure failed! error: ${error}`)
+    } else {
+        console.log(`Adventure succeed! txid: ${res['transactionHash']}`)
+    }
+}
+
+async function multipleClaimGold() {
+    const summoners = getSummoners()
+    const encodedABI = MULTIPLE_RARITY.methods.multiple_claim_gold(summoners).encodeABI()
+    const rawTx = await signTx(MULTIPLE_RARITY, encodedABI)
+    const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
+    if (error) {
+        console.log(`Adventure failed! error: ${error}`)
+    } else {
+        console.log(`Adventure succeed! txid: ${res['transactionHash']}`)
+    }
+}
+
+async function multipleCraftingMaterials() {
+    const summoners = getSummoners()
+    const encodedABI = MULTIPLE_RARITY.methods.multiple_adventure_crafting_materials(summoners).encodeABI()
+    const rawTx = await signTx(MULTIPLE_RARITY, encodedABI)
+    const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
+    if (error) {
+        console.log(`Adventure failed! error: ${error}`)
+    } else {
+        console.log(`Adventure succeed! txid: ${res['transactionHash']}`)
+    }
+}
+
+async function multipleLevelUp() {
+    const summoners = getSummoners()
+    const encodedABI = MULTIPLE_RARITY.methods.multiple_adventure(summoners).encodeABI()
+    const rawTx = await signTx(MULTIPLE_RARITY, encodedABI)
+    const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
+    if (error) {
+        console.log(`Adventure failed! error: ${error}`)
+    } else {
+        console.log(`Adventure succeed! txid: ${res['transactionHash']}`)
     }
 }
 
@@ -93,7 +199,7 @@ async function adventure() {
 
 async function goAdventure(summonerId) {
     const encodedABI = RARITY.methods.adventure(summonerId).encodeABI()
-    const rawTx = await signTx(encodedABI)
+    const rawTx = await signTx(RARITY, encodedABI)
     const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
     if (error) {
         console.log(`Adventure failed! summoner: ${summonerId} error: ${error}`)
@@ -117,7 +223,7 @@ async function levelUp() {
 
 async function doLevelUp(summonerId) {
     const encodedABI = RARITY.methods.level_up(summonerId).encodeABI()
-    const rawTx = await signTx(encodedABI)
+    const rawTx = await signTx(RARITY, encodedABI)
     const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
     if (error) {
         console.log(`Levelup failed! summoner: ${summonerId} error: ${error}`)
@@ -171,7 +277,7 @@ function safePromise(promise) {
     return promise.then(data => [ data ]).catch(error => [ null, error ]);
 }
 
-async function signTx(encodedABI) {
+async function signTx(contract, encodedABI) {
     var nonce = await web3.eth.getTransactionCount(Config.account.address)
 
     const common = Common.forCustomChain('mainnet', {
@@ -181,7 +287,7 @@ async function signTx(encodedABI) {
     }, 'petersburg');
 
     let params = {
-        'to': RARITY.options.address, 
+        'to': contract.options.address, 
         'value': "0x", 
         'gas': Config.transaction.gas_limit,
         'gasPrice': Config.transaction.gas_price * 1000000000,
