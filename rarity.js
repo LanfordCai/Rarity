@@ -136,15 +136,15 @@ async function approveToMultipleRarity(summonerId) {
     }
 }
 
-async function multipleAdventure() {
+async function multipleLevelUp() {
     const summoners = getSummoners()
     const encodedABI = MULTIPLE_RARITY.methods.multiple_level_up(summoners).encodeABI()
     const rawTx = await signTx(MULTIPLE_RARITY, encodedABI)
     const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
     if (error) {
-        console.log(`Adventure failed! error: ${error}`)
+        console.log(`LevelUp failed! error: ${error}`)
     } else {
-        console.log(`Adventure succeed! txid: ${res['transactionHash']}`)
+        console.log(`LevelUp succeed! txid: ${res['transactionHash']}`)
     }
 }
 
@@ -166,13 +166,13 @@ async function multipleCraftingMaterials() {
     const rawTx = await signTx(MULTIPLE_RARITY, encodedABI)
     const [ res, error ] = await safePromise(web3.eth.sendSignedTransaction(rawTx))
     if (error) {
-        console.log(`Adventure failed! error: ${error}`)
+        console.log(`Crafting failed! error: ${error}`)
     } else {
-        console.log(`Adventure succeed! txid: ${res['transactionHash']}`)
+        console.log(`Crafting succeed! txid: ${res['transactionHash']}`)
     }
 }
 
-async function multipleLevelUp() {
+async function multipleAdventure() {
     const summoners = getSummoners()
     const encodedABI = MULTIPLE_RARITY.methods.multiple_adventure(summoners).encodeABI()
     const rawTx = await signTx(MULTIPLE_RARITY, encodedABI)
